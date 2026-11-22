@@ -5,6 +5,7 @@ class TorrentClientType(str, Enum):
     transmission = "transmission"
     decypharr = "decypharr"
     qbittorrent = "qbittorrent"
+    premiumize = "premiumize"
 
 class User(BaseModel):
     username: str = "default"

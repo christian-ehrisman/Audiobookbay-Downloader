@@ -659,6 +659,8 @@
                 <i x-show="torrent.status === 'Seeding'" class="fas fa-arrow-up text-green-500"></i>
                 <i x-show="torrent.status === 'Downloading'" class="fas fa-arrow-down text-blue-500"></i>
                 <i x-show="torrent.status === 'Stopped'" class="fas fa-pause text-gray-500"></i>
+                <i x-show="torrent.status === 'Complete'" class="fas fa-cloud text-green-500" title="Complete"></i>
+                <i x-show="torrent.status === 'Error'" class="fas fa-exclamation-triangle text-red-500" :title="torrent.message || 'Error'"></i>
               </div>
               <h3 class="font-bold text-sm sm:text-base break-all pr-2" x-text="torrent.name"></h3>
             </div>
@@ -687,7 +689,7 @@
             </div>
             
             <div class="flex items-center gap-2 flex-shrink-0">
-              <button x-show="torrentClientType !== 'decypharr'" 
+              <button x-show="torrentClientType !== 'decypharr' && torrentClientType !== 'premiumize'" 
                       @click="toggleTorrent(torrent.id, torrent.status)" 
                       :disabled="deletingTorrent === torrent.id"
                       class="bg-gray-600 hover:bg-gray-500 text-gray-300 rounded flex items-center justify-center disabled:opacity-50 h-8 w-8"
@@ -891,6 +893,7 @@
                         <option value="transmission">Transmission</option>
                         <option value="qbittorrent">qBittorrent</option>
                         <option value="decypharr">Decypharr</option>
+                        <option value="premiumize">Premiumize.me</option>
                     </select>
                 </div>
                 <template x-for="[key, schema] in getConfigsByGroup('torrent').filter(([k]) => k !== 'torrent_client_type')" :key="key">
@@ -935,6 +938,19 @@
                         <input :type="schema.sensitive ? 'password' : 'text'" x-model="appConfig[key]" class="w-full p-2 rounded bg-gray-600 text-white" :placeholder="schema.has_value ? '(configured)' : ''">
                     </div>
                 </template>
+            </div>
+        </div>
+
+        <div x-show="appConfig.torrent_client_type === 'premiumize'" class="bg-gray-700 p-4 rounded-lg mb-4">
+            <h3 class="text-lg font-semibold mb-3">Premiumize.me Settings</h3>
+            <div class="space-y-3">
+                <template x-for="[key, schema] in getConfigsByGroup('premiumize')" :key="key">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1" x-text="schema.label"></label>
+                        <input :type="schema.sensitive ? 'password' : 'text'" x-model="appConfig[key]" class="w-full p-2 rounded bg-gray-600 text-white" :placeholder="schema.has_value ? '(configured)' : ''">
+                    </div>
+                </template>
+                <p class="text-xs text-gray-400">Find your API key at premiumize.me/account. Leave the folder ID blank to save to your cloud root. Downloads stay in your Premiumize cloud, so Beets import is not available.</p>
             </div>
         </div>
 

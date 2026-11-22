@@ -11,7 +11,7 @@ A modern web application for searching and downloading audiobooks from Audiobook
 ## Features
 
 - 🎧 **Audiobook Search**: Search AudiobookBay via Jackett integration
-- 📥 **Multi-Client Downloads**: Support for Transmission, qBittorrent, and Decypharr torrent clients
+- 📥 **Multi-Client Downloads**: Support for Transmission, qBittorrent, Decypharr, and Premiumize.me
 - 🔐 **Flexible Authentication**: Support for Authentik SSO and no-auth modes
 - 📚 **Beets Integration**: Optional music library management integration
 - 🌐 **Web UI**: Clean, responsive interface for browsing and managing downloads
@@ -121,6 +121,20 @@ DECYPHARR_URL=https://decypharr.example.com
 DECYPHARR_API_KEY=your_decypharr_api_key
 ```
 
+**Option 4: Premiumize.me (cloud downloader)**
+```env
+TORRENT_CLIENT_TYPE=premiumize
+PREMIUMIZE_API_KEY=your_premiumize_api_key  # from https://www.premiumize.me/account
+PREMIUMIZE_FOLDER_ID=                       # optional: target cloud folder ID (default: root)
+```
+
+Magnets are sent to Premiumize with `POST /api/transfer/create` and the files land in your Premiumize cloud. Notes:
+
+- Premiumize has no labels or users, so ABB keeps a small ledger (`${DB_PATH}/premiumize.json`) of the transfers it created. Only those transfers are shown, and non-admin users only see their own.
+- If a Jackett link returns a `.torrent` file instead of a magnet redirect, ABB downloads the file and uploads it to Premiumize. Premiumize cannot reach a Jackett instance on your private network.
+- Deleting a transfer in the Status tab also deletes the file or folder it produced in your Premiumize cloud. The configured target folder is never deleted.
+- Pause, categories, seeding-ratio cleanup and Beets import are not available, because the files live in the cloud rather than on local disk. The play button is hidden; a failed transfer can be retried with `POST /torrent/{id}/play`.
+
 ### Optional Configuration
 
 #### Application Settings
@@ -141,7 +155,7 @@ STRICTLY_DELETE_AFTER_DAYS=30               # Days before force deletion
 
 #### Beets Integration (Optional)
 
-**Note:** Beets integration is supported with Transmission and qBittorrent clients only. Decypharr does not support beets integration due to API limitations (no label/file management APIs).
+**Note:** Beets integration is supported with Transmission and qBittorrent clients only. Decypharr does not support beets integration due to API limitations (no label/file management APIs), and Premiumize downloads stay in the cloud rather than on local disk.
 
 ```env
 USE_BEETS_IMPORT=false                      # Enable beets music library integration
@@ -444,6 +458,11 @@ docker-compose -f example/docker-compose-qbittorrent-vpn.yml up -d
 1. Access Decypharr web interface
 2. Generate an API key
 3. Update environment variables
+
+**For Premiumize.me:**
+1. Copy your API key from https://www.premiumize.me/account
+2. Optionally, copy the ID of a cloud folder to save into
+3. Set `TORRENT_CLIENT_TYPE=premiumize` and `PREMIUMIZE_API_KEY`, or choose Premiumize.me under Settings → Torrent Client and click **Test Torrent Connection**
 
 ### 3. Start the Application
 

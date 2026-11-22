@@ -996,5 +996,8 @@ def create_torrent_client(client_type: TorrentClientType, **kwargs) -> TorrentCl
         return DecypharrClient(**kwargs)
     elif client_type == TorrentClientType.qbittorrent:
         return QBittorrentClient(**kwargs)
+    elif client_type == TorrentClientType.premiumize:
+        from .premiumize import PremiumizeClient
+        return PremiumizeClient(**kwargs)
     else:
         raise ValueError(f"Unsupported torrent client type: {client_type}")

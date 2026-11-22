@@ -18,6 +18,8 @@ QBITTORRENT_URL = get_effective_config("qbittorrent_url")
 QBITTORRENT_USERNAME = get_effective_config("qbittorrent_username")
 QBITTORRENT_PASSWORD = get_effective_config("qbittorrent_password")
 QBITTORRENT_CATEGORY = get_effective_config("qbittorrent_category")
+PREMIUMIZE_API_KEY = get_effective_config("premiumize_api_key")
+PREMIUMIZE_FOLDER_ID = get_effective_config("premiumize_folder_id")
 
 LABEL = get_effective_config("label")
 
@@ -31,7 +33,7 @@ PAUSE_STALE_AFTER_DAYS = get_effective_config("pause_stale_after_days")
 BEETS_DIR = os.getenv("BEETSDIR", "/config")
 BEETS_INPUT_PATH = get_effective_config("beets_input_path")
 BEETS_COMPLETE_LABEL = os.getenv("BEETS_COMPLETE_LABEL", "beets")
-USE_BEETS_IMPORT = get_effective_config("use_beets_import") and TORRENT_CLIENT_TYPE != "decypharr"
+USE_BEETS_IMPORT = get_effective_config("use_beets_import") and TORRENT_CLIENT_TYPE not in ("decypharr", "premiumize")
 BEETS_ERROR_LABEL = os.getenv("BEETS_ERROR_LABEL", "beetserror")
 
 SESSION_KEY = os.getenv("SESSION_KEY", "cp5oLmSZozoLZWHq")

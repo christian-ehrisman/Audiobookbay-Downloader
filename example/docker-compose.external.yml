@@ -28,6 +28,11 @@ services:
       # - TORRENT_CLIENT_TYPE=decypharr
       # - DECYPHARR_URL=https://decypharr.example.com
       # - DECYPHARR_API_KEY=your_decypharr_api_key
+
+      # Option 4: Premiumize.me (uncomment to use instead of Transmission)
+      # - TORRENT_CLIENT_TYPE=premiumize
+      # - PREMIUMIZE_API_KEY=your_premiumize_api_key
+      # - PREMIUMIZE_FOLDER_ID=                    # optional target folder ID
       
       # App Configuration
       - AUTH_MODE=none                              # Options: authentik, none

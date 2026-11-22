@@ -90,8 +90,8 @@ class TorrentService:
     def remove_label_from_torrent_with_hash(self, hash_string: str, user: User, label: str) -> bool:
         """Remove label from torrent by hash"""
         try:
-            # For Transmission, find torrent by hash first
-            if self.client_type == TorrentClientType.transmission:
+            # Transmission and Premiumize use their own IDs, so find the torrent by hash first
+            if self.client_type in (TorrentClientType.transmission, TorrentClientType.premiumize):
                 torrents = self.client.get_torrents(user)
                 matching_torrents = [t for t in torrents if t.get("hash_string") == hash_string]
                 if matching_torrents:

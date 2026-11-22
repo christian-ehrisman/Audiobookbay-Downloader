@@ -19,7 +19,7 @@ from .torrent_service import (
 )
 from .audiobookbay import search_audiobook
 from .beetsapi import autoimport
-from .constants import BEETS_ERROR_LABEL, TRANSMISSION_URL, TRANSMISSION_USER, TRANSMISSION_PASS, DECYPHARR_URL, DECYPHARR_API_KEY, QBITTORRENT_URL, QBITTORRENT_USERNAME, QBITTORRENT_PASSWORD, TORRENT_CLIENT_TYPE, SESSION_KEY, TITLE, AUTH_MODE, GOODREADS_ENABLED
+from .constants import BEETS_ERROR_LABEL, TRANSMISSION_URL, TRANSMISSION_USER, TRANSMISSION_PASS, DECYPHARR_URL, DECYPHARR_API_KEY, QBITTORRENT_URL, QBITTORRENT_USERNAME, QBITTORRENT_PASSWORD, PREMIUMIZE_API_KEY, PREMIUMIZE_FOLDER_ID, TORRENT_CLIENT_TYPE, SESSION_KEY, TITLE, AUTH_MODE, GOODREADS_ENABLED
 from .db import select_candidate
 from .utils import custom_logger
 from .goodreads import poll_and_download, poll_and_download_single_user, validate_goodreads_config
@@ -91,6 +91,12 @@ async def lifespan(app: FastAPI):
                 url=QBITTORRENT_URL,
                 username=QBITTORRENT_USERNAME,
                 password=QBITTORRENT_PASSWORD
+            )
+        elif client_type == TorrentClientType.premiumize:
+            init_torrent_service(
+                client_type=client_type,
+                api_key=PREMIUMIZE_API_KEY,
+                folder_id=PREMIUMIZE_FOLDER_ID
             )
 
         logger.info(f"Initialized torrent service with {client_type.value} client")
@@ -478,6 +484,18 @@ def test_torrent_connection(user: User = Depends(validate_admin)):
             if not url:
                 return {"success": False, "message": "Decypharr URL not configured"}
             client = create_torrent_client("decypharr", url=url, api_key=api_key)
+        elif client_type == "premiumize":
+            api_key = get_effective_config("premiumize_api_key")
+            if not api_key:
+                return {"success": False, "message": "Premiumize API key not configured"}
+            client = create_torrent_client("premiumize", api_key=api_key, folder_id=get_effective_config("premiumize_folder_id"))
+            account = client.get_account_info()
+            if not account:
+                return {"success": False, "message": "Premiumize rejected the API key (see logs)"}
+            if not account.get("premium_until"):
+                return {"success": False, "message": "Connected, but this Premiumize account is not premium"}
+            torrents = client.get_torrents(user)
+            return {"success": True, "message": f"Connected to Premiumize (customer {account.get('customer_id')}). Found {len(torrents)} ABB transfers."}
         else:
             return {"success": False, "message": f"Unknown client type: {client_type}"}
         

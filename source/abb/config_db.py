@@ -75,7 +75,7 @@ CONFIG_SCHEMA = {
     "jackett_api_url": {"env": "JACKETT_API_URL", "default": "", "type": str, "label": "Jackett API URL", "group": "jackett", "sensitive": False},
     "jackett_api_key": {"env": "JACKETT_API_KEY", "default": "", "type": str, "label": "Jackett API Key", "group": "jackett", "sensitive": True},
     
-    "torrent_client_type": {"env": "TORRENT_CLIENT_TYPE", "default": "transmission", "type": str, "label": "Torrent Client Type", "group": "torrent", "sensitive": False, "options": ["transmission", "qbittorrent", "decypharr"]},
+    "torrent_client_type": {"env": "TORRENT_CLIENT_TYPE", "default": "transmission", "type": str, "label": "Torrent Client Type", "group": "torrent", "sensitive": False, "options": ["transmission", "qbittorrent", "decypharr", "premiumize"]},
     
     "transmission_url": {"env": "TRANSMISSION_URL", "default": "", "type": str, "label": "Transmission URL", "group": "transmission", "sensitive": False},
     "transmission_user": {"env": "TRANSMISSION_USER", "default": "", "type": str, "label": "Transmission Username", "group": "transmission", "sensitive": False},
@@ -88,6 +88,9 @@ CONFIG_SCHEMA = {
     
     "decypharr_url": {"env": "DECYPHARR_URL", "default": "", "type": str, "label": "Decypharr URL", "group": "decypharr", "sensitive": False},
     "decypharr_api_key": {"env": "DECYPHARR_API_KEY", "default": "", "type": str, "label": "Decypharr API Key", "group": "decypharr", "sensitive": True},
+
+    "premiumize_api_key": {"env": "PREMIUMIZE_API_KEY", "default": "", "type": str, "label": "Premiumize API Key", "group": "premiumize", "sensitive": True},
+    "premiumize_folder_id": {"env": "PREMIUMIZE_FOLDER_ID", "default": "", "type": str, "label": "Premiumize Target Folder ID (optional)", "group": "premiumize", "sensitive": False},
     
     "label": {"env": "LABEL", "default": "audiobook", "type": str, "label": "Torrent Label", "group": "torrent", "sensitive": False},
     "delete_after_days": {"env": "DELETE_AFTER_DAYS", "default": 14, "type": int, "label": "Delete After Days", "group": "cleanup", "sensitive": False},

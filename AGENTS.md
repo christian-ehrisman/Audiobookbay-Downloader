@@ -6,7 +6,7 @@
 
 ## OVERVIEW
 
-FastAPI web app for searching AudiobookBay via Jackett and managing torrent downloads with optional Beets library integration. Supports Transmission, qBittorrent, and Decypharr torrent clients.
+FastAPI web app for searching AudiobookBay via Jackett and managing torrent downloads with optional Beets library integration. Supports Transmission, qBittorrent, Decypharr, and Premiumize.me clients.
 
 ## STRUCTURE
 
@@ -15,6 +15,7 @@ abb/
 ├── main.py              # FastAPI app entry point, routes, auth
 ├── torrent.py           # Torrent client implementations (Transmission, qBittorrent, Decypharr)
 ├── torrent_service.py   # Service layer wrapping torrent clients
+├── premiumize.py        # Premiumize.me cloud client + local transfer ledger
 ├── audiobookbay.py      # Jackett search integration
 ├── beetsapi.py          # Beets music library auto-import
 ├── models.py            # Pydantic models (User, TorrentRequest, enums)
@@ -51,6 +52,7 @@ abb/
 | `TorrentClientInterface` | torrent.py:18 | Abstract base for torrent clients |
 | `TransmissionClient` | torrent.py:61 | Transmission RPC implementation |
 | `DecypharrClient` | torrent.py:396 | Decypharr API implementation |
+| `PremiumizeClient` | premiumize.py | Premiumize.me API implementation (ledger in `DB_PATH/premiumize.json`) |
 | `TorrentService` | torrent_service.py:14 | Service layer singleton |
 | `ProgrammaticImportSession` | beetsapi.py:21 | Custom beets importer |
 
@@ -103,6 +105,7 @@ cp secrets/dev.env.sample secrets/dev.env  # Then edit with real values
 - **Secrets**: `secrets/dev.env` is git-crypt encrypted. CI uses `GIT_CRYPT_KEY` secret.
 - **Beets integration**: Works with Transmission and qBittorrent (`USE_BEETS_IMPORT=true`). Not supported with Decypharr (no label/file APIs).
 - **Decypharr limitations**: pause/resume/labels not implemented - returns False/warning
+- **Premiumize limitations**: no pause/category/ratio; resume = `/transfer/retry`; labels and ownership live in the local TinyDB ledger; beets disabled (cloud storage)
 - **Frontend**: Single-page Alpine.js app, no build step. CDN dependencies.
 - **Session**: Uses Starlette `SessionMiddleware` with `SESSION_KEY` env var
 - **Torrent deletion policy**: Auto-delete after `DELETE_AFTER_DAYS` (ratio >1.0) or `STRICTLY_DELETE_AFTER_DAYS` (forced)
