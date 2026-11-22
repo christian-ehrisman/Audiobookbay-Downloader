@@ -16,6 +16,7 @@ abb/
 ├── torrent.py           # Torrent client implementations (Transmission, qBittorrent, Decypharr)
 ├── torrent_service.py   # Service layer wrapping torrent clients
 ├── premiumize.py        # Premiumize.me cloud client + local transfer ledger
+├── overcast.py          # Overcast upload: login, S3 form scrape, streaming multipart, upload ledger
 ├── audiobookbay.py      # Jackett search integration
 ├── beetsapi.py          # Beets music library auto-import
 ├── models.py            # Pydantic models (User, TorrentRequest, enums)
@@ -105,6 +106,7 @@ cp secrets/dev.env.sample secrets/dev.env  # Then edit with real values
 - **Secrets**: `secrets/dev.env` is git-crypt encrypted. CI uses `GIT_CRYPT_KEY` secret.
 - **Beets integration**: Works with Transmission and qBittorrent (`USE_BEETS_IMPORT=true`). Not supported with Decypharr (no label/file APIs).
 - **Decypharr limitations**: pause/resume/labels not implemented - returns False/warning
+- **Overcast upload**: no public API - scrapes `#upload_form` on overcast.fm/uploads; file sources = local paths (`OVERCAST_INPUT_PATH`) or `client.list_cloud_files()` (Premiumize); state in `DB_PATH/overcast.json`; scheduler job id `overcast_upload` (don't `remove_all_jobs`)
 - **Premiumize limitations**: no pause/category/ratio; resume = `/transfer/retry`; labels and ownership live in the local TinyDB ledger; beets disabled (cloud storage)
 - **Frontend**: Single-page Alpine.js app, no build step. CDN dependencies.
 - **Session**: Uses Starlette `SessionMiddleware` with `SESSION_KEY` env var

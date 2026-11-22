@@ -25,6 +25,9 @@ from .utils import custom_logger
 from .goodreads import poll_and_download, poll_and_download_single_user, validate_goodreads_config
 from .goodreads_db import get_config as get_goodreads_config, save_config as save_goodreads_config, get_all_processed_books, delete_processed_book, clear_all_processed_books, get_enabled_configs, migrate_legacy_data_for_user
 from .config_db import get_all_effective_configs, get_config_schema, set_config, get_effective_config, CONFIG_SCHEMA
+from .torrent_service import get_torrent_service
+from .constants import ADMIN_USER_DICT
+from . import overcast
 
 logger = custom_logger(__name__)
 
@@ -47,7 +50,8 @@ def setup_goodreads_scheduler():
     """Setup or update the Goodreads polling scheduler based on current config."""
     enabled_configs = get_enabled_configs()
     
-    scheduler.remove_all_jobs()
+    if scheduler.get_job('goodreads_poll'):
+        scheduler.remove_job('goodreads_poll')
     
     if enabled_configs:
         min_poll_interval = min(config.get("poll_interval", 60) for config in enabled_configs)
@@ -66,6 +70,26 @@ def setup_goodreads_scheduler():
         logger.info(f"Goodreads scheduler configured with {min_poll_interval} minute interval for {len(enabled_configs)} users")
     else:
         logger.info("Goodreads scheduler disabled (no enabled configurations)")
+
+def run_overcast_auto_upload():
+    try:
+        service = get_torrent_service()
+        overcast.auto_upload(service.get_torrents(ADMIN_USER_DICT), service.client)
+    except Exception as e:
+        logger.exception(f"Overcast auto-upload failed: {e}")
+
+def setup_overcast_scheduler():
+    """Add/replace/remove the Overcast auto-upload job based on current config."""
+    if overcast.is_enabled() and get_effective_config("overcast_auto_upload"):
+        minutes = max(1, int(get_effective_config("overcast_poll_interval") or 15))
+        scheduler.add_job(run_overcast_auto_upload, 'interval', minutes=minutes,
+                          id='overcast_upload', replace_existing=True, max_instances=1, coalesce=True)
+        if not scheduler.running:
+            scheduler.start()
+        logger.info(f"Overcast auto-upload every {minutes} minutes")
+    elif scheduler.get_job('overcast_upload'):
+        scheduler.remove_job('overcast_upload')
+        logger.info("Overcast auto-upload disabled")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -110,6 +134,7 @@ async def lifespan(app: FastAPI):
     if GOODREADS_ENABLED:
         setup_goodreads_scheduler()
         logger.info("Goodreads integration enabled")
+    setup_overcast_scheduler()
     yield
     
     if scheduler.running:
@@ -195,6 +220,10 @@ def title():
 def get_torrent_client_type():
     return {"torrent_client_type": TORRENT_CLIENT_TYPE}
 
+@app.get("/overcast-enabled")
+def get_overcast_enabled():
+    return {"enabled": overcast.is_enabled()}
+
 @app.get("/goodreads-enabled")
 def get_goodreads_enabled():
     return {"enabled": GOODREADS_ENABLED}
@@ -266,7 +295,7 @@ def add(
 @app.get("/list")
 def list_torrents(user: User = Depends(authenticate)):
     try:
-        return get_torrents(user)
+        return overcast.annotate(get_torrents(user))
     except Exception as e:
         logger.error(f"List torrents failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to list torrents")
@@ -329,6 +358,20 @@ def set_category_endpoint(
     except Exception as e:
         logger.error(f"Set category failed: {e}")
         raise HTTPException(status_code=500, detail=f"Set category failed: {e}")
+@app.post("/torrent/{torrent_id}/overcast")
+def upload_to_overcast_endpoint(torrent_id: str, user: User = Depends(authenticate)):
+    """Upload a finished torrent's audio files to Overcast (runs in the background)."""
+    if not overcast.is_enabled():
+        raise HTTPException(status_code=400, detail="Overcast upload is not enabled")
+    torrent = next((t for t in get_torrents(user) if str(t["id"]) == torrent_id), None)
+    if torrent is None:
+        raise HTTPException(status_code=404, detail=f"Torrent {torrent_id} not found")
+    if not overcast.is_complete(torrent):
+        raise HTTPException(status_code=409, detail="Torrent has not finished downloading")
+    if not overcast.start_upload(torrent, get_torrent_service().client):
+        raise HTTPException(status_code=409, detail="Upload already in progress")
+    return {"status": "ok", "message": f"Uploading {torrent['name']} to Overcast"}
+
 @app.post("/selectCandidate/{hash_string}/{candidate_id}")
 def select_candidate_endpoint(hash_string: str, candidate_id: str, user: User = Depends(authenticate)):
     try:
@@ -343,6 +386,7 @@ def select_candidate_endpoint(hash_string: str, candidate_id: str, user: User = 
 def autoimport_endpoint():
     try:
         autoimport()
+        run_overcast_auto_upload()
         delete_old_torrents()
         pause_stale_torrents()
         return {"status": "ok", "message": "Auto-import completed successfully"}
@@ -455,6 +499,8 @@ def save_app_config(update: AppConfigUpdate, user: User = Depends(validate_admin
         set_config(key, value)
         saved_keys.append(key)
     
+    if any(k.startswith("overcast_") for k in saved_keys):
+        setup_overcast_scheduler()
     return {"status": "ok", "saved": saved_keys, "message": "Configuration saved. Restart may be required for some changes to take effect."}
 
 
@@ -501,6 +547,17 @@ def test_torrent_connection(user: User = Depends(validate_admin)):
         
         torrents = client.get_torrents(user)
         return {"success": True, "message": f"Connected successfully. Found {len(torrents)} torrents."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@app.post("/config/test-overcast")
+def test_overcast_connection(user: User = Depends(validate_admin)):
+    """Log in and read the upload form without uploading anything."""
+    try:
+        form = overcast.make_client().get_upload_form()
+        accept = f" Overcast accepts: {', '.join(form.accept)}." if form.accept else ""
+        return {"success": True, "message": f"Logged in to Overcast and found the upload form.{accept}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 

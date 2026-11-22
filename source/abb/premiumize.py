@@ -323,6 +323,33 @@ class PremiumizeClient(TorrentClientInterface):
         elif folder_id and str(folder_id) != str(self.folder_id):
             self._request("POST", "/folder/delete", data={"id": folder_id})
 
+    def list_cloud_files(self, torrent: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Downloadable files a finished transfer produced: [{path, name, size, link}]."""
+        file_id, folder_id = torrent.get("file_id"), torrent.get("folder_id")
+        if file_id:
+            # Single-file transfer: folder_id is the parent folder; pick our file from it.
+            data = self._request("GET", "/folder/list", params={"id": folder_id} if folder_id else None)
+            for item in (data or {}).get("content", []):
+                if str(item.get("id")) == str(file_id):
+                    return [{"path": item["name"], "name": item["name"], "size": item.get("size", 0), "link": item["link"]}]
+            return []
+        if folder_id:
+            return self._walk_folder(folder_id, "")
+        return []
+
+    def _walk_folder(self, folder_id: str, prefix: str, depth: int = 0) -> List[Dict[str, Any]]:
+        if depth > 10:
+            return []
+        data = self._request("GET", "/folder/list", params={"id": folder_id})
+        files = []
+        for item in (data or {}).get("content", []):
+            path = f"{prefix}{item.get('name', '')}"
+            if item.get("type") == "folder":
+                files.extend(self._walk_folder(item["id"], path + "/", depth + 1))
+            elif item.get("link"):
+                files.append({"path": path, "name": item["name"], "size": item.get("size", 0), "link": item["link"]})
+        return files
+
     def pause_torrent(self, torrent_id: str, user: User) -> bool:
         logger.warning("Premiumize does not support pausing transfers")
         return False

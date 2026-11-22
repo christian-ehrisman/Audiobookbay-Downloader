@@ -100,6 +100,15 @@ CONFIG_SCHEMA = {
     "use_beets_import": {"env": "USE_BEETS_IMPORT", "default": False, "type": bool, "label": "Enable Beets Import", "group": "beets", "sensitive": False},
     "beets_input_path": {"env": "BEETS_INPUT_PATH", "default": "/beetsinput", "type": str, "label": "Beets Input Path", "group": "beets", "sensitive": False},
     
+    "overcast_enabled": {"env": "OVERCAST_ENABLED", "default": False, "type": bool, "label": "Enable Overcast Upload", "group": "overcast", "sensitive": False},
+    "overcast_auto_upload": {"env": "OVERCAST_AUTO_UPLOAD", "default": False, "type": bool, "label": "Auto-upload finished downloads", "group": "overcast", "sensitive": False},
+    "overcast_email": {"env": "OVERCAST_EMAIL", "default": "", "type": str, "label": "Overcast Email", "group": "overcast", "sensitive": False},
+    "overcast_password": {"env": "OVERCAST_PASSWORD", "default": "", "type": str, "label": "Overcast Password", "group": "overcast", "sensitive": True},
+    "overcast_input_path": {"env": "OVERCAST_INPUT_PATH", "default": "", "type": str, "label": "Downloads Path (blank = Beets Input Path)", "group": "overcast", "sensitive": False},
+    "overcast_extensions": {"env": "OVERCAST_EXTENSIONS", "default": "mp3,m4a,m4b", "type": str, "label": "File Extensions to Upload", "group": "overcast", "sensitive": False},
+    "overcast_poll_interval": {"env": "OVERCAST_POLL_INTERVAL", "default": 15, "type": int, "label": "Auto-upload Check Interval (minutes)", "group": "overcast", "sensitive": False},
+    "overcast_label": {"env": "OVERCAST_LABEL", "default": "overcast", "type": str, "label": "Label for Uploaded Torrents", "group": "overcast", "sensitive": False},
+
     "goodreads_enabled": {"env": "GOODREADS_ENABLED", "default": False, "type": bool, "label": "Enable Goodreads", "group": "goodreads", "sensitive": False},
     
     "title": {"env": "TITLE", "default": "Audiobook Search", "type": str, "label": "App Title", "group": "app", "sensitive": False},

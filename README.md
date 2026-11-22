@@ -16,6 +16,7 @@ A modern web application for searching and downloading audiobooks from Audiobook
 - 📚 **Beets Integration**: Optional music library management integration
 - 🌐 **Web UI**: Clean, responsive interface for browsing and managing downloads
 - 🔄 **Auto-Import**: Automated processing and cleanup of completed downloads
+- 🎙️ **Overcast Upload**: Send finished audiobooks to your Overcast Premium uploads, manually or automatically
 - 📗 **Goodreads Integration**: Auto-download audiobooks from your Goodreads "to-read" shelf
 - 🏷️ **Label Management**: Organize torrents with custom labels
 
@@ -285,6 +286,28 @@ If you want to test the candidate-selection UI without waiting for a real torren
 - Beets Audible plugin: https://github.com/Neurrone/beets-audible
 - Beets path formats: https://beets.readthedocs.io/en/stable/reference/pathformat.html
 
+#### Overcast Upload (Optional)
+
+Uploads finished audiobooks to [Overcast](https://overcast.fm/uploads) so they appear in the podcast app. This needs an **Overcast Premium** account. Overcast has no public upload API, so ABB signs in with your email and password and uses the same upload form as the website, like [overcast-uploader](https://github.com/pawelkami/overcast-uploader).
+
+```env
+OVERCAST_ENABLED=true
+OVERCAST_EMAIL=you@example.com
+OVERCAST_PASSWORD=your_overcast_password
+OVERCAST_AUTO_UPLOAD=false          # true = upload every finished download automatically
+OVERCAST_POLL_INTERVAL=15           # minutes between auto-upload checks
+OVERCAST_EXTENSIONS=mp3,m4a,m4b     # which files to upload
+OVERCAST_INPUT_PATH=/downloads      # Transmission/qBittorrent only; default: BEETS_INPUT_PATH
+OVERCAST_LABEL=overcast             # label added to torrents once uploaded
+```
+
+- **Manual:** click the podcast icon next to a finished torrent in the **Status** tab. It shows a spinner while uploading, a check when done, and a red mark with the error if it failed. Click again to retry.
+- **Automatic:** with `OVERCAST_AUTO_UPLOAD=true`, finished downloads are uploaded on a schedule, and whenever `POST /autoimport` runs. Failed uploads are not retried automatically; use the button.
+- **Where files come from:** Transmission and qBittorrent read files from `OVERCAST_INPUT_PATH`, so mount the client's downloads folder into the ABB container at that path. Premiumize streams files straight from your Premiumize cloud. Decypharr is not supported because it doesn't report file paths.
+- Files are streamed rather than loaded into memory, so large `.m4b` files are fine. Each file becomes one Overcast episode. Multi-file books are named `<Book> - <file>` so files from different books don't overwrite each other.
+- Progress is tracked per file in `${DB_PATH}/overcast.json`, so a retry skips files that already uploaded.
+- Use **Settings → Overcast Upload → Test Overcast Login** to check your credentials without uploading anything.
+
 #### Goodreads Integration (Optional)
 ```env
 GOODREADS_ENABLED=true                      # Enable Goodreads tab in UI (default: false)
@@ -490,6 +513,7 @@ PYTHONPATH=source python -m uvicorn abb.main:app --host 0.0.0.0 --port 9000
 - `POST /torrent/{id}/play` - Resume torrent
 - `POST /autoimport` - Trigger auto-import process
 - `POST /torrent/{id}/category` - Set category for torrent (qBittorrent only)
+- `POST /torrent/{id}/overcast` - Upload a finished torrent to Overcast (runs in the background)
 
 ## Development
 

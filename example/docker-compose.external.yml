@@ -40,6 +40,13 @@ services:
       - SESSION_KEY=your_random_session_key_here    # Change this to a random string
       - LABEL=audiobook                            # Default torrent label
       
+      # Overcast Upload (optional, requires Overcast Premium)
+      # - OVERCAST_ENABLED=true
+      # - OVERCAST_EMAIL=you@example.com
+      # - OVERCAST_PASSWORD=your_overcast_password
+      # - OVERCAST_AUTO_UPLOAD=true
+      # - OVERCAST_INPUT_PATH=/downloads   # mount your torrent client's downloads here
+
       # Cleanup Configuration
       - DELETE_AFTER_DAYS=14
       - STRICTLY_DELETE_AFTER_DAYS=30

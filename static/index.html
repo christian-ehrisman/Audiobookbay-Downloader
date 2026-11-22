@@ -72,6 +72,10 @@
 
 
     goodreadsEnabled: false,
+    overcastEnabled: false,
+    overcastError: null,
+    testingOvercast: false,
+    overcastTestResult: null,
     goodreadsConfig: { goodreads_user_id: '', shelf: 'to-read', poll_interval: 60, enabled: false, last_poll: null, last_poll_status: null, last_poll_message: null },
     processedBooks: [],
     loadingGoodreads: false,
@@ -124,6 +128,7 @@
             const data = await response.json();
             this.configSuccess = data.message;
             this.fetchAppConfig();
+            this.fetchOvercastEnabled();
         } catch (error) {
             this.configError = error.message;
         } finally {
@@ -283,6 +288,7 @@
         this.setTitle();
         this.fetchTorrentClientType();
         this.fetchGoodreadsEnabled();
+        this.fetchOvercastEnabled();
     },
 
     async fetchRole() {
@@ -313,6 +319,42 @@
         } catch (error) {
             console.error('Error fetching torrent client type:', error);
             this.torrentClientType = 'transmission';
+        }
+    },
+
+    async fetchOvercastEnabled() {
+        try {
+            const response = await fetch('/overcast-enabled');
+            if (response.ok) this.overcastEnabled = (await response.json()).enabled;
+        } catch (error) {
+            console.error('Error fetching overcast enabled:', error);
+        }
+    },
+
+    async uploadToOvercast(torrentId) {
+        this.overcastError = null;
+        try {
+            const response = await fetch(`/torrent/${torrentId}/overcast`, { method: 'POST' });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || 'Failed to start Overcast upload');
+            }
+            this.getTorrentStatus();
+        } catch (error) {
+            this.overcastError = error.message;
+        }
+    },
+
+    async testOvercastConnection() {
+        this.testingOvercast = true;
+        this.overcastTestResult = null;
+        try {
+            const response = await fetch('/config/test-overcast', { method: 'POST' });
+            this.overcastTestResult = await response.json();
+        } catch (error) {
+            this.overcastTestResult = { success: false, message: error.message };
+        } finally {
+            this.testingOvercast = false;
         }
     },
 
@@ -686,6 +728,7 @@
               <div x-show="torrent.upload_ratio > 0">Ratio: <span x-text="torrent.upload_ratio.toFixed(2)"></span></div>
               <div x-show="torrent.percent_done > 0  && torrent.percent_done < 100">Progress: <span x-text="(torrent.percent_done).toFixed(1) + '%'"></span></div>
               <div x-show="torrent.status === 'Downloading' && torrent.eta">ETA: <span x-text="formatEta(torrent.eta)"></span></div>
+              <div x-show="torrent.overcast && ['queued', 'uploading'].includes(torrent.overcast.state)">Overcast: <span x-text="torrent.overcast ? torrent.overcast.uploaded + '/' + (torrent.overcast.total || '?') + ' files' : ''"></span></div>
             </div>
             
             <div class="flex items-center gap-2 flex-shrink-0">
@@ -705,6 +748,20 @@
                 <i class="fas fa-folder"></i>
               </button>
               
+              <button x-show="overcastEnabled && torrent.percent_done >= 100"
+                      @click="uploadToOvercast(torrent.id)"
+                      :disabled="torrent.overcast && ['queued', 'uploading'].includes(torrent.overcast.state)"
+                      class="bg-gray-600 hover:bg-gray-500 rounded flex items-center justify-center disabled:opacity-50 h-8 w-8"
+                      :class="{'text-orange-400': torrent.overcast?.state === 'done', 'text-red-500': torrent.overcast?.state === 'error', 'text-gray-300': !torrent.overcast || !['done', 'error'].includes(torrent.overcast.state)}"
+                      :title="!torrent.overcast ? 'Upload to Overcast'
+                              : torrent.overcast.state === 'done' ? 'Uploaded to Overcast (click to re-check)'
+                              : torrent.overcast.state === 'error' ? 'Overcast upload failed: ' + torrent.overcast.message + ' (click to retry)'
+                              : 'Uploading to Overcast: ' + torrent.overcast.uploaded + '/' + torrent.overcast.total">
+                <span x-show="torrent.overcast && ['queued', 'uploading'].includes(torrent.overcast.state)" class="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+                <i x-show="!torrent.overcast || !['queued', 'uploading'].includes(torrent.overcast.state)"
+                   :class="torrent.overcast?.state === 'done' ? 'fas fa-check' : (torrent.overcast?.state === 'error' ? 'fas fa-exclamation' : 'fas fa-podcast')"></i>
+              </button>
+
               <button @click="deleteTorrent(torrent.id)" 
                       :disabled="deletingTorrent === torrent.id"
                       class="bg-gray-600 hover:bg-gray-500 text-gray-300 rounded flex items-center justify-center disabled:opacity-50 h-8 w-8">
@@ -717,6 +774,7 @@
       </template>
       
       <p x-show="deleteTorrentError" class="text-red-500 mt-2" x-text="deleteTorrentError"></p>
+      <p x-show="overcastError" class="text-red-500 mt-2" x-text="overcastError"></p>
       
       <template x-if="confirmDelete">
     <div class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-50 p-4" @click.self="showCandidateDialog = false">
@@ -993,6 +1051,40 @@
                         </template>
                     </div>
                 </template>
+            </div>
+        </div>
+
+        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+            <h3 class="text-lg font-semibold mb-3">Overcast Upload</h3>
+            <div class="space-y-3">
+                <template x-for="[key, schema] in getConfigsByGroup('overcast')" :key="key">
+                    <div>
+                        <template x-if="typeof appConfig[key] === 'boolean'">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" x-model="appConfig[key]" :id="key" class="w-4 h-4">
+                                <label :for="key" class="text-sm" x-text="schema.label"></label>
+                            </div>
+                        </template>
+                        <template x-if="typeof appConfig[key] === 'number'">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1" x-text="schema.label"></label>
+                                <input type="number" x-model.number="appConfig[key]" class="w-full p-2 rounded bg-gray-600 text-white">
+                            </div>
+                        </template>
+                        <template x-if="typeof appConfig[key] !== 'boolean' && typeof appConfig[key] !== 'number'">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1" x-text="schema.label"></label>
+                                <input :type="schema.sensitive ? 'password' : 'text'" x-model="appConfig[key]" class="w-full p-2 rounded bg-gray-600 text-white" :placeholder="schema.has_value ? '(configured)' : ''">
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <p class="text-xs text-gray-400">Requires Overcast Premium. Finished downloads are uploaded to overcast.fm/uploads. For Transmission and qBittorrent, the downloads folder must be mounted into this container. Premiumize files are streamed straight from your cloud. Save the configuration before testing.</p>
+                <button @click="testOvercastConnection()" :disabled="testingOvercast" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50">
+                    <span x-show="testingOvercast" class="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+                    Test Overcast Login
+                </button>
+                <div x-show="overcastTestResult" class="mt-2 p-2 rounded text-sm" :class="overcastTestResult?.success ? 'bg-green-900' : 'bg-red-900'" x-text="overcastTestResult?.message"></div>
             </div>
         </div>
 
