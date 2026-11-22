@@ -72,6 +72,13 @@ def get_config_with_env_fallback(key: str, env_var: str, default: Any = None, ty
 
 
 CONFIG_SCHEMA = {
+    "search_provider": {"env": "SEARCH_PROVIDER", "default": "jackett", "type": str, "label": "Search Provider", "group": "search", "sensitive": False, "options": ["jackett", "prowlarr"]},
+
+    "prowlarr_url": {"env": "PROWLARR_URL", "default": "", "type": str, "label": "Prowlarr URL (e.g. http://prowlarr:9696)", "group": "prowlarr", "sensitive": False},
+    "prowlarr_api_key": {"env": "PROWLARR_API_KEY", "default": "", "type": str, "label": "Prowlarr API Key", "group": "prowlarr", "sensitive": True},
+    "prowlarr_indexer_ids": {"env": "PROWLARR_INDEXER_IDS", "default": "", "type": str, "label": "Indexer IDs (comma-separated, blank = auto-detect AudiobookBay)", "group": "prowlarr", "sensitive": False},
+    "prowlarr_categories": {"env": "PROWLARR_CATEGORIES", "default": "3030", "type": str, "label": "Categories (blank = all; 3030 = Audio/Audiobook)", "group": "prowlarr", "sensitive": False},
+
     "jackett_api_url": {"env": "JACKETT_API_URL", "default": "", "type": str, "label": "Jackett API URL", "group": "jackett", "sensitive": False},
     "jackett_api_key": {"env": "JACKETT_API_KEY", "default": "", "type": str, "label": "Jackett API Key", "group": "jackett", "sensitive": True},
     

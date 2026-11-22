@@ -19,7 +19,7 @@ from .torrent_service import (
 )
 from .audiobookbay import search_audiobook
 from .beetsapi import autoimport
-from .constants import BEETS_ERROR_LABEL, TRANSMISSION_URL, TRANSMISSION_USER, TRANSMISSION_PASS, DECYPHARR_URL, DECYPHARR_API_KEY, QBITTORRENT_URL, QBITTORRENT_USERNAME, QBITTORRENT_PASSWORD, PREMIUMIZE_API_KEY, PREMIUMIZE_FOLDER_ID, TORRENT_CLIENT_TYPE, SESSION_KEY, TITLE, AUTH_MODE, GOODREADS_ENABLED
+from .constants import BEETS_ERROR_LABEL, TRANSMISSION_URL, TRANSMISSION_USER, TRANSMISSION_PASS, DECYPHARR_URL, DECYPHARR_API_KEY, QBITTORRENT_URL, QBITTORRENT_USERNAME, QBITTORRENT_PASSWORD, TORRENT_CLIENT_TYPE, SESSION_KEY, TITLE, AUTH_MODE, GOODREADS_ENABLED
 from .db import select_candidate
 from .utils import custom_logger
 from .goodreads import poll_and_download, poll_and_download_single_user, validate_goodreads_config
@@ -117,11 +117,8 @@ async def lifespan(app: FastAPI):
                 password=QBITTORRENT_PASSWORD
             )
         elif client_type == TorrentClientType.premiumize:
-            init_torrent_service(
-                client_type=client_type,
-                api_key=PREMIUMIZE_API_KEY,
-                folder_id=PREMIUMIZE_FOLDER_ID
-            )
+            # Key and folder are read from config on each request (Settings changes apply live)
+            init_torrent_service(client_type=client_type)
 
         logger.info(f"Initialized torrent service with {client_type.value} client")
     except ValueError as e:
@@ -565,7 +562,16 @@ def test_overcast_connection(user: User = Depends(validate_admin)):
 @app.post("/config/test-jackett")
 def test_jackett_connection(user: User = Depends(validate_admin)):
     try:
-        from .audiobookbay import search_audiobook
+        from .audiobookbay import search_audiobook, prowlarr_indexers, audiobookbay_indexer_ids, search_prowlarr
+        if (get_effective_config("search_provider") or "jackett") == "prowlarr":
+            indexers = prowlarr_indexers()
+            abb = audiobookbay_indexer_ids(indexers)
+            configured = get_effective_config("prowlarr_indexer_ids")
+            if not abb and not configured:
+                names = ", ".join(i.get("name", "?") for i in indexers) or "none"
+                return {"success": False, "message": f"Connected to Prowlarr, but no enabled AudiobookBay indexer found (indexers: {names}). Add one in Prowlarr or set Indexer IDs."}
+            results = search_prowlarr("test")
+            return {"success": True, "message": f"Connected to Prowlarr ({len(indexers)} indexers, AudiobookBay id(s): {configured or abb}). Search returned {len(results)} results."}
         url = get_effective_config("jackett_api_url")
         api_key = get_effective_config("jackett_api_key")
         if not url or not api_key:

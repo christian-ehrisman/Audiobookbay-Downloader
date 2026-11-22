@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from tinydb import Query, TinyDB
 
+from .config_db import get_effective_config
 from .constants import BEETS_COMPLETE_LABEL, BEETS_ERROR_LABEL, LABEL
 from .models import User
 from .torrent import TorrentClientInterface
@@ -80,13 +81,23 @@ class PremiumizeClient(TorrentClientInterface):
         api_url: str = PREMIUMIZE_API_URL,
         store: Optional[PremiumizeTransferStore] = None,
     ):
-        self.api_key = api_key
-        self.folder_id = folder_id or ""
+        # Explicit values win; otherwise read the current config on each use so a
+        # key entered on the Settings page works without restarting the app.
+        self._api_key = api_key
+        self._folder_id = folder_id
         self.api_url = api_url.rstrip("/")
         self.session = requests.Session()
         if api_key:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
         self._store = store
+
+    @property
+    def api_key(self) -> str:
+        return self._api_key or get_effective_config("premiumize_api_key") or ""
+
+    @property
+    def folder_id(self) -> str:
+        return self._folder_id or get_effective_config("premiumize_folder_id") or ""
 
     # ------------------------------------------------------------------ helpers
 
@@ -103,6 +114,10 @@ class PremiumizeClient(TorrentClientInterface):
         {"status": "error", "message": ...}, so the body status is checked too.
         """
         url = f"{self.api_url}{endpoint}"
+        if not self.api_key:
+            logger.error("Premiumize API key not configured")
+            return None
+        self.session.headers["Authorization"] = f"Bearer {self.api_key}"
         try:
             response = self.session.request(method, url, timeout=30, **kwargs)
         except Exception as e:

@@ -78,6 +78,16 @@ JACKETT_API_URL=https://jackett.example.com/api/v2.0/indexers/audiobookbay/resul
 JACKETT_API_KEY=your_jackett_api_key
 ```
 
+#### Prowlarr instead of Jackett
+```env
+SEARCH_PROVIDER=prowlarr
+PROWLARR_URL=http://prowlarr:9696
+PROWLARR_API_KEY=your_prowlarr_api_key
+PROWLARR_INDEXER_IDS=            # optional; blank = every enabled indexer named AudiobookBay
+PROWLARR_CATEGORIES=3030         # optional; blank = all categories
+```
+You can also set these under Settings → Search Provider. The changes apply without a restart. Add the AudiobookBay indexer in Prowlarr first.
+
 #### Torrent Client Configuration (Choose One)
 
 **Option 1: Transmission**

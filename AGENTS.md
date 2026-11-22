@@ -34,7 +34,7 @@ abb/
 |------|----------|-------|
 | Add API endpoint | main.py | All routes defined here |
 | Modify torrent behavior | torrent.py | Abstract class + implementations |
-| Change search logic | audiobookbay.py | Jackett API integration |
+| Change search logic | audiobookbay.py | Jackett or Prowlarr (`SEARCH_PROVIDER`); Prowlarr results mapped to Jackett field names |
 | Add/modify env vars | constants.py | All env vars loaded here |
 | Database operations | db.py | TinyDB for beets candidates |
 | Auth logic | main.py:authenticate() | Authentik headers or no-auth mode |

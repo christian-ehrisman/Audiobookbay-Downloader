@@ -158,3 +158,18 @@ def test_labels_are_kept_in_local_store(store):
     assert "beets" in store.get("t1")["labels"]
     assert client.remove_label_from_torrent("t1", ALICE, "beets") is True
     assert "beets" not in store.get("t1")["labels"]
+
+
+def test_api_key_is_read_from_config_when_not_passed(store, monkeypatch):
+    import abb.premiumize as pm
+    config = {"premiumize_api_key": ""}
+    monkeypatch.setattr(pm, "get_effective_config", lambda k: config.get(k))
+    client = PremiumizeClient(store=store)
+    client.session = FakeSession({("GET", "/transfer/list"): {"status": "success", "transfers": []}})
+
+    assert client.get_torrents(ADMIN) == []
+    assert client.session.calls == []  # no key yet: no request sent
+
+    config["premiumize_api_key"] = "entered-in-settings"
+    client.get_torrents(ADMIN)
+    assert client.session.headers["Authorization"] == "Bearer entered-in-settings"
