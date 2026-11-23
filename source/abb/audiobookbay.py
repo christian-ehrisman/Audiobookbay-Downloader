@@ -1,22 +1,49 @@
+import re
+
 import requests
 from typing import Any, Dict, List, Optional
 from .config_db import get_effective_config
+from .models import AddTorrentError
 from .constants import JACKETT_API_KEY, JACKETT_API_URL
 from .utils import custom_logger
 
 logger = custom_logger(__name__)
 
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+DOWNLOAD_TIMEOUT = (10, 90)  # Prowlarr may scrape the tracker's details page before answering
+
+
+def _redact(url: str) -> str:
+    return re.sub(r"(apikey=)[^&]+", r"\1***", url or "")
+
+
 def get_jackett_magnet(url):
-    try:
-        if url.startswith("magnet:"):
-            return url
-        response = requests.get(url, allow_redirects=False)
-        if response.status_code in [301, 302]:
-            return response.headers.get("Location", url)
-    except Exception as e:
-        logger.error(f"Error fetching magnet URL: {e}")
+    """Turn an indexer download link (Jackett/Prowlarr) into a magnet if it redirects to one.
+
+    Returns the magnet, a redirect target, or the original URL when it serves a
+    .torrent file. Raises AddTorrentError when the indexer fails or stalls.
+    """
+    if url.startswith("magnet:"):
         return url
-    return url
+    logger.info(f"Resolving download link {_redact(url)}")
+    try:
+        response = requests.get(url, allow_redirects=False, timeout=DOWNLOAD_TIMEOUT,
+                                headers={"User-Agent": BROWSER_UA}, stream=True)
+    except requests.exceptions.Timeout:
+        raise AddTorrentError(f"Timed out after {DOWNLOAD_TIMEOUT[1]}s waiting for the indexer to return a magnet/torrent")
+    except requests.exceptions.RequestException as e:
+        raise AddTorrentError(f"Could not reach the indexer download link: {e}")
+    try:
+        if response.status_code in (301, 302, 303, 307, 308):
+            location = response.headers.get("Location", "")
+            logger.info(f"Download link redirected to {_redact(location)[:120]}")
+            return location or url
+        if response.status_code >= 400:
+            body = response.raw.read(500, decode_content=True).decode("utf-8", "replace").strip()
+            raise AddTorrentError(f"Indexer download failed (HTTP {response.status_code}): {body[:300] or 'no details'}")
+        return url  # 200: serves a .torrent file; the client fetches it itself
+    finally:
+        response.close()
 
 def search_audiobook(query, api_url: Optional[str] = None, api_key: Optional[str] = None, provider: Optional[str] = None):
     """Search for audiobooks. Results use Jackett's field names (Title, Link,

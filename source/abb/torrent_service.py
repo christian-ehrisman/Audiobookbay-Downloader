@@ -1,6 +1,6 @@
 import time
 from typing import Optional, List, Dict, Any
-from .models import User, TorrentClientType
+from .models import AddTorrentError, User, TorrentClientType
 from .torrent import create_torrent_client, TorrentClientInterface
 from .constants import (
     LABEL, DELETE_AFTER_DAYS, STRICTLY_DELETE_AFTER_DAYS, 
@@ -36,6 +36,8 @@ class TorrentService:
             # Convert to magnet if needed
             torrent_url = get_jackett_magnet(torrent_url)
             return self.client.add_torrent(torrent_url, user, label, category)
+        except AddTorrentError:
+            raise
         except Exception as e:
             logger.error(f"Error adding torrent: {e}")
             return False

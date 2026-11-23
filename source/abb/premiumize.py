@@ -21,7 +21,7 @@ from tinydb import Query, TinyDB
 
 from .config_db import get_effective_config
 from .constants import BEETS_COMPLETE_LABEL, BEETS_ERROR_LABEL, LABEL
-from .models import User
+from .models import AddTorrentError, User
 from .torrent import TorrentClientInterface
 from .utils import custom_logger
 
@@ -90,6 +90,7 @@ class PremiumizeClient(TorrentClientInterface):
         if api_key:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
         self._store = store
+        self.last_error = ""
 
     @property
     def api_key(self) -> str:
@@ -135,7 +136,8 @@ class PremiumizeClient(TorrentClientInterface):
             return None
 
         if data.get("status") != "success":
-            logger.error(f"Premiumize {endpoint} error: {data.get('message') or data}")
+            self.last_error = str(data.get("message") or data)
+            logger.error(f"Premiumize {endpoint} error: {self.last_error}")
             return None
         return data
 
@@ -281,11 +283,15 @@ class PremiumizeClient(TorrentClientInterface):
         if label is None:
             label = LABEL
 
+        if not self.api_key:
+            raise AddTorrentError("Premiumize API key not configured (Settings → Premiumize.me)")
         data, files = self._resolve_source(torrent_url)
+        if files is None and not data.get("src", "").startswith("magnet:"):
+            logger.warning(f"Sending a non-magnet URL to Premiumize; it must be publicly reachable: {data.get('src', '')[:80]}")
+        self.last_error = ""
         result = self._request("POST", "/transfer/create", data=data, files=files)
         if not result or not result.get("id"):
-            logger.error(f"Failed to add transfer to Premiumize: {torrent_url}")
-            return False
+            raise AddTorrentError(f"Premiumize refused the transfer: {self.last_error or 'no response (see logs)'}")
 
         labels = [label]
         if user:

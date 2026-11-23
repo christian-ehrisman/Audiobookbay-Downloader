@@ -68,11 +68,13 @@ def test_add_magnet_creates_transfer_and_tracks_owner(store):
     assert set(entry["labels"]) == {"audiobook", "alice", "username:alice"}
 
 
-def test_add_returns_false_on_api_error(store):
+def test_add_raises_with_premiumize_reason_on_api_error(store):
+    from abb.models import AddTorrentError
     client = make_client(store, {
         ("POST", "/transfer/create"): {"status": "error", "message": "not premium"},
     })
-    assert client.add_torrent(MAGNET, ALICE) is False
+    with pytest.raises(AddTorrentError, match="not premium"):
+        client.add_torrent(MAGNET, ALICE)
     assert store.all() == {}
 
 

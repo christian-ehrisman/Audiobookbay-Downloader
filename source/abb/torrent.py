@@ -401,7 +401,7 @@ class TransmissionClient(TorrentClientInterface):
         try:
             if url.startswith("magnet:"):
                 return url
-            response = requests.get(url, allow_redirects=False)
+            response = requests.get(url, allow_redirects=False, timeout=(10, 90))
             if response.status_code in [301, 302]:
                 return response.headers.get("Location", url)
         except Exception as e:
@@ -953,7 +953,7 @@ class QBittorrentClient(TorrentClientInterface):
         try:
             if url.startswith("magnet:"):
                 return url
-            response = requests.get(url, allow_redirects=False)
+            response = requests.get(url, allow_redirects=False, timeout=(10, 90))
             if response.status_code in [301, 302]:
                 return response.headers.get("Location", url)
         except Exception as e:

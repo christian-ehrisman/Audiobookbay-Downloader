@@ -12,5 +12,9 @@ class User(BaseModel):
     role: str = "user" 
     id: str = "default"
 
+class AddTorrentError(Exception):
+    """Adding a torrent failed for a reason worth showing to the user."""
+
+
 class TorrentRequest(BaseModel):
     url: str

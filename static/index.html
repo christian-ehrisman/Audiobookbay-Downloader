@@ -207,13 +207,23 @@
         try {
             let requestBody = { url };
 
-            let response = await fetch('/add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(requestBody)
-            });
-            let data = await response.json();
-            if (data.status !== 'ok') throw new Error(data.message || 'Error adding torrent');
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 150000);
+            let response;
+            try {
+                response = await fetch('/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+            } catch (e) {
+                throw new Error(e.name === 'AbortError' ? 'Timed out after 150s waiting for the server' : e.message);
+            } finally {
+                clearTimeout(timer);
+            }
+            let data = await response.json().catch(() => ({}));
+            if (!response.ok || data.status !== 'ok') throw new Error(data.detail || data.message || `Error adding torrent (HTTP ${response.status})`);
             this.searchComplete = false;
             this.searchError = 'Successfully added torrent!';
         } catch (error) {

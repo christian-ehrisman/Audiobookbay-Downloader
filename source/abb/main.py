@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from pydantic import BaseModel
 
-from .models import TorrentRequest, User, TorrentClientType
+from .models import AddTorrentError, TorrentRequest, User, TorrentClientType
 from .torrent_service import (
     init_torrent_service, get_torrents, add_torrent, delete_torrent, 
     pause_torrent, resume_torrent, remove_label_from_torrent_with_hash, delete_old_torrents,
@@ -281,13 +281,15 @@ def add(
 ):
     try:
         success = add_torrent(torrent.url, user)
-        if success:
-            return {"status": "ok", "message": "Torrent added successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to add torrent")
-    except Exception as e:
+    except AddTorrentError as e:
         logger.error(f"Add failed: {e}")
-        raise HTTPException(status_code=500, detail="Add failed")
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Add failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Add failed: {e}")
+    if success:
+        return {"status": "ok", "message": "Torrent added successfully"}
+    raise HTTPException(status_code=500, detail="Failed to add torrent (see server logs)")
 
 @app.get("/list")
 def list_torrents(user: User = Depends(authenticate)):
